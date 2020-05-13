@@ -825,6 +825,7 @@ type Dict = Exp String String
 \end{code}
 Dicionário para testes:
 \begin{code}
+-- Primeiro é a palavra, e depois é uma lista de possiveis traduções
 d :: [(String, [String])]
 d =  [ ("ABA",["BRIM"]),
        ("ABALO",["SHOCK"]),
@@ -839,11 +840,13 @@ d =  [ ("ABA",["BRIM"]),
 \end{code}
 Normalização de um dicionário (remoção de entradas vazias):
 \begin{code}
+-- Dicionario normalizado
 dic_norm = collect . filter p . discollect where
    p(a,b)= a > "" && b > ""
 \end{code}
 Teste de redundância de um significado |s| para uma palavra |p|:
 \begin{code}
+--Teste de redundancia de um significado s para uma palavra p
 dic_red p s d = (p,s) `elem` discollect d
 \end{code}
 
@@ -968,17 +971,18 @@ outras funções auxiliares que sejam necessárias.
 
 \subsection*{Problema 1}
 \begin{code}
+-- Separar pares
 discollect :: (Ord b, Ord a) => [(b, [a])] -> [(b, a)]
 discollect = undefined
-
+-- Exportar dicionario
 dic_exp :: Dict -> [(String,[String])]
 dic_exp = collect . tar
-
+-- 
 tar = cataExp g where
   g = undefined
-
+-- Ler dicionario
 dic_rd = undefined
-
+-- importar dicionario
 dic_in = undefined
 
 \end{code}
