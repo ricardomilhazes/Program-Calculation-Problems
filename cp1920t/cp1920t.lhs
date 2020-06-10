@@ -970,81 +970,212 @@ alterados os nomes ou tipos das funções dadas, mas pode ser adicionado texto e
 outras funções auxiliares que sejam necessárias.
 
 \subsection*{Problema 1}
+
+\begin{eqnarray*}
+\xymatrix@@C=4cm{
+    |[(String,[String])]|
+           \ar[d]_-{|cataNat discollect|}
+&
+    |1 + ((String,[String]) x [(String,[String])])|
+           \ar[d]^{|id + (id x (cataNat discollect))|}
+           \ar[l]_-{|inList|}
+\\
+     |[(String,String)]|
+&
+     |1 + ((String,[String]) x [(String,String)])|
+           \ar[l]^-{|discollect|}
+           \ar[d]^{|id + (discollectOnePair >< id)|}
+\\
+&
+     |1 + ([(String,String)] x [(String,String)]|
+           \ar[ul]^-{|[nil,conc]|}
+}
+\end{eqnarray*}
+
 \begin{code}
--- Separar pares
+
 discollect :: (Ord b, Ord a) => [(b, [a])] -> [(b, a)]
-discollect = undefined
--- Exportar dicionario
+discollect = cataList g where
+  g = either nil (conc . (discollectOnePair >< id))
+
+discollectOnePair :: (Ord b, Ord a) => (b,[a]) -> [(b,a)]
+discollectOnePair (x,[]) = []
+discollectOnePair (x,(h:t)) = (x,h) : discollectOnePair (x,t)
+
+-- Explicação
+
 dic_exp :: Dict -> [(String,[String])]
 dic_exp = collect . tar
--- 
+
+-- Diagrama da tar
+
 tar = cataExp g where
-  g = undefined
--- Ler dicionario
-dic_rd = undefined
--- importar dicionario
-dic_in = undefined
+  g = either createPair (concLetter . (id >< concLists))
+
+createPair s = [("",s)]
+
+concLetter (s,[]) = []
+concLetter (s,((s1,s2):t)) = (s ++ s1, s2) : concLetter (s,t)
+
+concLists [] = []
+concLists (h:t) = h ++ concLists t  
+
+-- Explicação
+
+-- Diagrama da dic_rd
+
+dic_rd x = cataList g . dic_exp
+  where g = either (const Nothing) (checkTrad . (procuraTrad x >< id))
+
+checkTrad :: ([String], Maybe [String]) -> Maybe [String]
+checkTrad (l,p) = if (length l == 0) then p else Just l
+
+procuraTrad :: String -> (String,[String]) -> [String]
+procuraTrad l (p,t) = if l == p then t else [] 
+
+-- Explicação
+
+-- Diagrama da dic_in
+
+dic_in x = undefined
+
+-- Explicação
 
 \end{code}
 
 \subsection*{Problema 2}
 
 \begin{code}
+
+-- Diagrama da maisDir
+
 maisDir = cataBTree g
-  where g = undefined
+  where g = either (const Nothing) maisDirAux
+
+maisDirAux (root, (l,Nothing)) = Just root
+maisDirAux (root, (l,r)) = r
+
+-- Explicação
+
+-- Diagrama da maisEsq
 
 maisEsq = cataBTree g
-  where g = undefined
+  where g = either (const Nothing) maisEsqAux
+
+maisEsqAux (root, (Nothing,r)) = Just root
+maisEsqAux (root, (l,r)) = l
+
+-- Explicação
+
+-- Diagrama da insOrd'
 
 insOrd' x = cataBTree g 
   where g = undefined
 
 insOrd a x = undefined
 
+-- Explicação
+
+-- Diagrama da isOrd'
+
 isOrd' = cataBTree g
-  where g = undefined
+  where g = either (split (const True) (const Empty)) (split (uncurry (&&) . (split (verificaIsOrdEsq . ( id >< p1 )) (verificaIsOrdDir . ( id >< p2 )))) (criaBTree . ( id >< (p2 >< p2))))
+ 
+isOrd = p1 . isOrd'
 
-isOrd = undefined
+criaBTree :: (a, (BTree a, BTree a)) -> BTree a
+criaBTree (a, (t1, t2)) = Node(a, (t1,t2))
 
+verificaIsOrdEsq :: Ord a => (a, (Bool, BTree a)) -> Bool
+verificaIsOrdEsq (a, (b1, Empty)) = True
+verificaIsOrdEsq (a, (b1, (Node (x1, (t1, t2))))) = if ((a >= x1) && (b1 == True)) then verificaIsOrdEsq (a,(b1,t1)) && verificaIsOrdEsq (a,(b1,t2)) else False
 
-rrot = undefined
+verificaIsOrdDir :: Ord a => (a, (Bool, BTree a)) -> Bool
+verificaIsOrdDir (a, (b1, Empty)) = True
+verificaIsOrdDir (a, (b1, (Node (x1, (t1, t2))))) = if ((a < x1) && (b1 == True)) then verificaIsOrdDir (a,(b1,t1)) && verificaIsOrdDir (a,(b1,t2)) else False
 
-lrot = undefined
+-- Explicação
 
-splay l t =  undefined
+rrot = inBTree . (id -|- rrotAux) . outBTree
+
+rrotAux :: (a,(BTree a, BTree a)) -> (a,(BTree a, BTree a))
+rrotAux (a, (Empty, r)) = (a, (Empty, r))
+rrotAux (a, ((Node (x1, (t1, t2))), r)) = (x1, (t1, (Node(a, (t2, r)))))
+
+-- Explicação
+
+lrot = inBTree . (id -|- lrotAux) . outBTree
+
+lrotAux :: (a,(BTree a, BTree a)) -> (a,(BTree a, BTree a))
+lrotAux (a, (l, Empty)) = (a, (l, Empty))
+lrotAux (a, (l, (Node (x1, (t1, t2))))) = (x1, ((Node(a, (l, t1))), t2))
+
+-- Explicação
+
+splay l t = undefined
+
+--fSplay (l,r) [] = (l [], r [])
+--fSplay (l,r) (h:t) = (p2p (l,r) h) t
   
 \end{code}
 
 \subsection*{Problema 3}
 
 \begin{code}
+
+-- Diagrama da extLTree
+
 extLTree :: Bdt a -> LTree a
 extLTree = cataBdt g where
-  g = undefined
+  g = inLTree . (id -|- p2)
 
-inBdt = undefined
+-- Explicação
 
-outBdt = undefined
+inBdt = either inBdt1 inBdt2
+inBdt1 a = Dec a
+inBdt2 (s,(t1,t2)) = Query (s,(t1,t2))
 
-baseBdt = undefined
-recBdt = undefined
+outBdt (Dec a) = i1 a
+outBdt (Query (s,(t1,t2))) = i2 (s,(t1,t2))
 
-cataBdt = undefined
+baseBdt f g = f -|- (id >< (g >< g))
+recBdt g = baseBdt id g
 
-anaBdt = undefined
+cataBdt g = g . (recBdt (cataBdt g)) . outBdt
+
+anaBdt g = inBdt . (recBdt (anaBdt g)) . g
+
+-- Criar gráfico anamorfismo
+
+-- Explicação
+
+-- Diagrama navLTree
 
 navLTree :: LTree a -> ([Bool] -> LTree a)
 navLTree = cataLTree g 
-  where g = undefined
+  where g = either (const . Leaf) fNav
+
+fNav (l,r) [] = Fork (l [], r [])
+fNav (l,r) (h:t) = (p2p (l,r) h) t
+
+-- Explicação
+
 \end{code}
 
 
 \subsection*{Problema 4}
 
 \begin{code}
-bnavLTree = cataLTree g
-  where g = undefined
 
+-- Diagrama bnavLTree
+
+bnavLTree = cataLTree g
+  where g = either (const . Leaf) fbNav
+
+fbNav (l,r) Empty = Fork (l Empty, r Empty)
+fbNav (l,r) (Node(b,(esq,dir))) = (p2p (l,r) b) (p2p (esq,dir) b)
+
+-- Explicação
 
 pbnavLTree = cataLTree g
   where g = undefined 
