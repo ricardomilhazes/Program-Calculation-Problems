@@ -961,6 +961,8 @@ envolvendo \gloss{Gloss}. Nesse caso, o teste em causa deve fazer parte de uma f
 run = do { system "ghc cp1920t" ; system "./cp1920t" }
 \end{code}
 
+\newpage
+
 %----------------- Soluções dos alunos -----------------------------------------%
 
 \section{Soluções dos alunos}\label{sec:resolucao}
@@ -972,22 +974,22 @@ outras funções auxiliares que sejam necessárias.
 \subsection*{Problema 1}
 
 \begin{eqnarray*}
-\xymatrix@@C=4cm{
+\xymatrix@@C=2cm{
     |[(String,[String])]|
            \ar[d]_-{|cataNat discollect|}
 &
-    |1 + ((String,[String]) x [(String,[String])])|
-           \ar[d]^{|id + (id x (cataNat discollect))|}
+    |1 + ((String,[String]) >< [(String,[String])])|
+           \ar[d]^{|id + (id >< (cataNat discollect))|}
            \ar[l]_-{|inList|}
 \\
      |[(String,String)]|
 &
-     |1 + ((String,[String]) x [(String,String)])|
+     |1 + ((String,[String]) >< [(String,String)])|
            \ar[l]^-{|discollect|}
            \ar[d]^{|id + (discollectOnePair >< id)|}
 \\
 &
-     |1 + ([(String,String)] x [(String,String)]|
+     |1 + ([(String,String)] >< [(String,String)]|
            \ar[ul]^-{|[nil,conc]|}
 }
 \end{eqnarray*}
@@ -998,19 +1000,61 @@ discollect :: (Ord b, Ord a) => [(b, [a])] -> [(b, a)]
 discollect = cataList g where
   g = either nil (conc . (discollectOnePair >< id))
 
+\end{code}
+
+\begin{code}
+
 discollectOnePair :: (Ord b, Ord a) => (b,[a]) -> [(b,a)]
 discollectOnePair (x,[]) = []
 discollectOnePair (x,(h:t)) = (x,h) : discollectOnePair (x,t)
 
--- Explicação
+\end{code}
+
+Para a função \texttt{discollect}, o nosso método de pensamento foi o seguinte:
+
+\begin{itemize}
+	\item Para cada par \textbf{(palavra, traduções)} criar n pares \textbf{(palavra, tradução)}, em que n representa o tamanho da lista.
+	\item Concatenar os n pares \textbf{(palavra, tradução)} com o resultado da chamada recursiva.
+\end{itemize}
+
+\begin{code}
 
 dic_exp :: Dict -> [(String,[String])]
 dic_exp = collect . tar
 
--- Diagrama da tar
+\end{code}
+
+%format (Seq (a)) = a"^{*}"
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |Dict|
+           \ar[d]_-{|cataNat tar|}
+&
+    |String + (String >< Seq(Dict))|
+           \ar[d]^{|id + (id >< (map (cataNat tar)))|}
+           \ar[l]_-{|inExp|}
+\\
+     |[(String,String)]|
+&
+     |String + String >< [[(String,String)]])|
+           \ar[l]^-{|tar|}
+           \ar[d]^{|createPair + (id >< concLists)|}
+\\
+&
+     |[(String,String)] + (String >< [(String,String)]|
+           \ar[ul]^-{|[id,concLetter]|}
+}
+\end{eqnarray*}
+
+\begin{code}
 
 tar = cataExp g where
   g = either createPair (concLetter . (id >< concLists))
+
+\end{code}
+
+\begin{code}
 
 createPair s = [("",s)]
 
@@ -1020,68 +1064,195 @@ concLetter (s,((s1,s2):t)) = (s ++ s1, s2) : concLetter (s,t)
 concLists [] = []
 concLists (h:t) = h ++ concLists t  
 
--- Explicação
+\end{code}
 
--- Diagrama da dic_rd
+\newpage
+
+Para a função \texttt{tar}, o nosso método de pensamento foi o seguinte:
+
+\begin{itemize}
+	\item Para o resultado do \texttt{map} da chamada recursiva, é importante concatenar as listas de pares para obter, numa só lista, todos os pares \textbf{(palavra, tradução)} do dicionário. Daí a utilização da função \texttt{concLists}.
+	\item De seguida, é necessário colocar a letra correspondente à posição onde estamos na árvore como prefixo de todas as palavras dessa mesma árvore. Utilizámos então a função \texttt{concLetter} para este efeito.
+	\item Finalmente, quando tratámos das traduções, é necessário criar um par \textbf{([], tradução)} para que a \texttt{String} do lado esquerdo possa ser preenchida pela função recursiva.
+\end{itemize}
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+	|Dict|
+		   \ar[d]^-{|dic_exp|}
+\\
+    |[(String,[String])]|
+           \ar[d]_-{|cataNat dic_rd|}
+&
+    |1 + ((String,[String]) >< [(String,[String])])|
+           \ar[d]^{|id + (id >< cataNat dic_rd)|}
+           \ar[l]_-{|inList|}
+\\
+     |Maybe [String]|
+&
+     |1 + ((String,[String]) >< Maybe [String])|
+           \ar[l]^-{|dic_rd|}
+           \ar[d]^{|id + ((procuraTrad x) >< id)|}
+\\
+&
+     |1 + ([String] >< Maybe [String])|
+           \ar[ul]^-{|[Nothing,checkTrad]|}
+}
+\end{eqnarray*}
+
+\begin{code}
 
 dic_rd x = cataList g . dic_exp
   where g = either (const Nothing) (checkTrad . (procuraTrad x >< id))
+
+\end{code}
+
+\begin{code}
 
 checkTrad :: ([String], Maybe [String]) -> Maybe [String]
 checkTrad (l,p) = if (length l == 0) then p else Just l
 
 procuraTrad :: String -> (String,[String]) -> [String]
-procuraTrad l (p,t) = if l == p then t else [] 
-
--- Explicação
-
--- Diagrama da dic_in
-
-dic_in x = undefined
-
--- Explicação
+procuraTrad l (p,t) = if l == p then t else []
 
 \end{code}
 
-\subsection*{Problema 2}
+Para a função \texttt{dic\_rd}, o nosso método de pensamento foi o seguinte:
+
+\begin{itemize}
+	\item Transformar a estrutura \texttt{Dict} numa estrutura mais fácil para proceder à procura das traduções de uma palvara. Decidimos usar a função \texttt{dic\_exp} que, na realidade, já executa este passo por nós. 
+	\item De seguida, é necessário pesquisar a palavra à qual queremos obter as traduções pelos pares \textbf{(palavra, traduções)}. A função \texttt{procuraTrad} faz exatamente isso e ainda acrescenta a funcionalidade de retornar automaticamente a lista de traduções da palavra.
+	\item Finalmente, como sabemos que não existem palavras repetidas no dicionário, se a função \texttt{procuraTrad} retornar uma lista de traduções, podemos automaticamente considerar esse o caso de paragem e retornar o resultado da função \texttt{procuraTrad}. Essa funcionalidade está implementada na função \texttt{checkTrad}.
+\end{itemize}
 
 \begin{code}
 
--- Diagrama da maisDir
+dic_in x = undefined
+
+\end{code}
+
+\newpage
+
+\subsection*{Problema 2}
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |BTree A|
+           \ar[d]_-{|cataNat maisDir|}
+&
+    |1 + (A >< (BTree A >< BTree A))|
+           \ar[d]^{|id + (id >< (cataNat maisDir >< cataNat maisDir))|}
+           \ar[l]_-{|inBTree|}
+\\
+     |Maybe A|
+&
+     |1 + (A >< (Maybe A >< Maybe A))|
+           \ar[l]^-{|maisDir|}
+           \ar[d]^{|id + maisDirAux|}
+\\
+&
+     |1 + Maybe A|
+           \ar[ul]^-{|[Nothing,id]|}
+}
+\end{eqnarray*}
+
+\begin{code}
 
 maisDir = cataBTree g
   where g = either (const Nothing) maisDirAux
 
+\end{code}
+
+\begin{code}
+
 maisDirAux (root, (l,Nothing)) = Just root
 maisDirAux (root, (l,r)) = r
 
--- Explicação
+\end{code}
 
--- Diagrama da maisEsq
+Para a função \texttt{maisDir}, o nosso método de pensamento foi muito simples. Enquanto a chamada recursiva retonar um valor à direita, escolhemos sempre esse valor e, dessa forma, seguimos sempre pela direita. Quando a chamada recursiva retornar \texttt{Nothing} do lado direito, é sinal que a árvore do lado direito é \texttt{Empty} logo, o elemento mais à direita é o atual.
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |BTree A|
+           \ar[d]_-{|cataNat maisEsq|}
+&
+    |1 + (A >< (BTree A >< BTree A))|
+           \ar[d]^{|id + (id >< (cataNat maisEsq >< cataNat maisEsq))|}
+           \ar[l]_-{|inBTree|}
+\\
+     |Maybe A|
+&
+     |1 + (A >< (Maybe A >< Maybe A))|
+           \ar[l]^-{|maisDir|}
+           \ar[d]^{|id + maisEsqAux|}
+\\
+&
+     |1 + Maybe A|
+           \ar[ul]^-{|[Nothing,id]|}
+}
+\end{eqnarray*}
+
+\begin{code}
 
 maisEsq = cataBTree g
   where g = either (const Nothing) maisEsqAux
 
+\end{code}
+
+\begin{code}
+
 maisEsqAux (root, (Nothing,r)) = Just root
 maisEsqAux (root, (l,r)) = l
 
--- Explicação
+\end{code}
 
--- Diagrama da insOrd'
+Para a função \texttt{maisEsq}, o nosso método de pensamento foi exatamente o mesmo para a função anterior. Apenas invertemos o caminho que queremos seguir (pela esquerda e não pela direita).
+
+Diagrama da insOrd'
+
+\begin{code}
 
 insOrd' x = cataBTree g 
   where g = undefined
 
 insOrd a x = undefined
 
--- Explicação
+\end{code}
 
--- Diagrama da isOrd'
+Explicação
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |BTree A|
+           \ar[d]_-{|cataNat isOrd'|}
+&
+    |1 + (A >< (BTree A >< BTree A))|
+           \ar[d]^{|id + (id >< (map (cataNat tar)))|}
+           \ar[l]_-{|inExp|}
+\\
+     |Bool x BTree A|
+&
+     |1 + (A >< ((Bool >< BTree A) >< (Bool >< BTree A)))|
+           \ar[l]^-{|isOrd'|}
+           \ar[d]^{|id + < <verificaIsOrdEsq . (id >< p1), verificaIsOrdDir . (id >< p2) >, criaBTree . (id >< p2 >< p2) >|}
+\\
+&
+     |1 + (Bool >< Bool) >< BTree A|
+           \ar[ul]^-{|[<True,Empty>,uncurry (&&)]|}
+}
+\end{eqnarray*}
+
+\begin{code}
 
 isOrd' = cataBTree g
   where g = either (split (const True) (const Empty)) (split (uncurry (&&) . (split (verificaIsOrdEsq . ( id >< p1 )) (verificaIsOrdDir . ( id >< p2 )))) (criaBTree . ( id >< (p2 >< p2))))
  
 isOrd = p1 . isOrd'
+
+\end{code}
+
+\begin{code}
 
 criaBTree :: (a, (BTree a, BTree a)) -> BTree a
 criaBTree (a, (t1, t2)) = Node(a, (t1,t2))
@@ -1094,7 +1265,11 @@ verificaIsOrdDir :: Ord a => (a, (Bool, BTree a)) -> Bool
 verificaIsOrdDir (a, (b1, Empty)) = True
 verificaIsOrdDir (a, (b1, (Node (x1, (t1, t2))))) = if ((a < x1) && (b1 == True)) then verificaIsOrdDir (a,(b1,t1)) && verificaIsOrdDir (a,(b1,t2)) else False
 
--- Explicação
+\end{code}
+
+Explicação
+
+\begin{code}
 
 rrot = inBTree . (id -|- rrotAux) . outBTree
 
@@ -1102,7 +1277,11 @@ rrotAux :: (a,(BTree a, BTree a)) -> (a,(BTree a, BTree a))
 rrotAux (a, (Empty, r)) = (a, (Empty, r))
 rrotAux (a, ((Node (x1, (t1, t2))), r)) = (x1, (t1, (Node(a, (t2, r)))))
 
--- Explicação
+\end{code}
+
+Explicação
+
+\begin{code}
 
 lrot = inBTree . (id -|- lrotAux) . outBTree
 
@@ -1110,7 +1289,11 @@ lrotAux :: (a,(BTree a, BTree a)) -> (a,(BTree a, BTree a))
 lrotAux (a, (l, Empty)) = (a, (l, Empty))
 lrotAux (a, (l, (Node (x1, (t1, t2))))) = (x1, ((Node(a, (l, t1))), t2))
 
--- Explicação
+\end{code}
+
+Explicação
+
+\begin{code}
 
 splay l t = undefined
 
