@@ -1000,7 +1000,7 @@ A operação |dic_rd| implementa a procura na correspondente exportação de um 
 \begin{code}
 
 prop_dic_rd1 (p,t)
-   | valid t     = dic_rd  p t == lookup p (dic_exp t)
+   | valid t = dic_rd p t == lookup p (dic_exp t)
    | otherwise = True
 
 \end{code}
@@ -1280,20 +1280,60 @@ maisEsqAux (root, (l,r)) = l
 
 Para a função \texttt{maisEsq}, o nosso método de pensamento foi exatamente o mesmo para a função anterior. Apenas invertemos o caminho que queremos seguir (pela esquerda e não pela direita).
 
+\begin{eqnarray*}
+\resizebox{\displaywidth}{!}{%
+\xymatrix@@C=2cm{
+    |BTree A|
+           \ar[d]_-{|cataNat insOrd'|}
+&
+    |1 + (A >< (BTree A >< BTree A))|
+           \ar[d]^{|id + (id >< (map (cataNat insOrd')))|}
+           \ar[l]_-{|inBTree|}
+\\
+     |Bool x BTree A|
+&
+     |1 + (A >< ((BTree A >< BTree A) >< (BTree A >< BTree A)))|
+           \ar[l]^-{|insOrd'|}
+           \ar[d]^{|id + < [criaBTree . (id >< (p1 >< p1)), insertValue . criaBTree . (id >< (p2 >< p2))] . (verificaIsOrd . (id >< (p1 >< p1)))?, criaBTree . (id >< p2 >< p2) >|}
+\\
+&
+     |1 + (BTree A >< BTree A)|
+           \ar[ul]^-{|[<const Empty,const Empty>, id]|}
+}}
+\end{eqnarray*}
+
 \begin{code}
 
-insOrd' x = undefined
+insOrd' x = cataBTree g
+  where g = either ( split (const Empty) (const Empty) ) ( split h (criaBTree . (id >< (p2 >< p2))) )
+        h = Cp.cond ( verificaIsOrd . (id >< (p1 >< p1)) ) ( criaBTree . (id >< (p1 >< p1)) ) ( insertValue x . criaBTree . (id >< (p2 >< p2)) )
 
-insOrd a x = insOrd_aux a x
+insertValue :: Ord a => a -> BTree a -> BTree a
+insertValue x Empty = Node(x,(Empty,Empty))
+insertValue x (Node (x1,(Empty,Empty))) | (x <= x1) = Node (x1,((Node(x1,(Empty,Empty))),Empty))
+                                        | otherwise = Node (x1,(Empty,(Node(x1,(Empty,Empty)))))
+insertValue x (Node (x1,(l,r))) | (x <= x1) = Node (x1,((Node(x,(l,Empty))),r))
+                                | otherwise = Node (x1,(l,(Node(x,(Empty,r)))))
 
-insOrd_aux :: Ord a => a -> BTree a -> BTree a
-insOrd_aux x Empty = Node(x,(Empty,Empty))
-insOrd_aux x (Node(x1,(l,r))) | x <= x1 = Node(x1,((insOrd_aux x l), r))
-                              | otherwise = Node(x1,(l,(insOrd_aux x r)))
+verificaIsOrd :: Ord a => (a,(BTree a, BTree a)) -> Bool
+verificaIsOrd (x1,(Empty,Empty)) = False
+verificaIsOrd (x,(l,r)) = isOrd (Node(x,(l,r)))
+
+insOrd a x = fst (insOrd' a x)
 
 \end{code}
 
-Infelizmente, não conseguimos produzir a função insOrd como um catamorfirsmo com recursividade mútua e, daí, criamos a função recursiva que faz a inserção de um elemente de forma ordenada na árvore.
+Para a função \texttt{insOrd}, o nosso método de pensamento foi o seguinte:
+
+\begin{itemize}
+  \item Em primeiro lugar, era necessário inserir o elemento de imediato quando estamos nos nodos iniciais da árvore.
+  \item De seguida, era necessário verificar se a árvore com os elementos já inseridos se encontra ordenada:
+  \begin{itemize}
+    \item Se a árvore está ordenada, é sinal que o elemento está bem inserido, logo vamos mantê-la.
+    \item Caso a árvore não esteja ordenada, é sinal que o elemento está mal inserido, logo vamos voltar a inserir o elemento na árvore que foi preservada do lado direito do par (árvore original).
+  \end{itemize}
+  \item Finalmente, retirámos apenas o primeiro elemento do par retornante do catamorfismo, já que esse é o elemento da árvore com o elemento já inserido.
+\end{itemize}
 
 \begin{eqnarray*}
 \resizebox{\displaywidth}{!}{%
@@ -1302,8 +1342,8 @@ Infelizmente, não conseguimos produzir a função insOrd como um catamorfirsmo 
            \ar[d]_-{|cataNat isOrd'|}
 &
     |1 + (A >< (BTree A >< BTree A))|
-           \ar[d]^{|id + (id >< (map (cataNat tar)))|}
-           \ar[l]_-{|inExp|}
+           \ar[d]^{|id + (id >< (map (cataNat isOrd')))|}
+           \ar[l]_-{|inBTree|}
 \\
      |Bool x BTree A|
 &
@@ -1314,7 +1354,7 @@ Infelizmente, não conseguimos produzir a função insOrd como um catamorfirsmo 
 \\
 &
      |1 + (Bool >< Bool) >< BTree A|
-           \ar[ul]^-{|[<True,Empty>,uncurry (&&)]|}
+           \ar[ul]^-{|[<const True,const Empty>,uncurry (&&)]|}
 }}
 \end{eqnarray*}
 
@@ -1441,6 +1481,12 @@ fSplay2 (a,(l,r)) (h:t) = (p2p (l,r) h) t
 
 \end{code}
 
+Para a função \texttt{splay}, o nosso pensamento foi o seguinte:
+\begin{itemize}
+  \item É escolhido, dependendo da cabeça da lista de booleanos, qual o caminho a seguir pela \texttt{BTree}. 
+  \item Quando a lista de booleanos acaba, retornamos uma \texttt{BTree} em que cada lado é correspondente à aplicação da função respetiva à lista vazia e o seu nodo é o nodo atual.
+\end{itemize}
+
 \newpage
 
 \subsection*{Problema 3}
@@ -1522,7 +1568,7 @@ extLTree = cataBdt g where
 
 \end{code}
 
-Para a função \texttt{LTree}, o processo foi muito simples. Ignoramos toda a informação contida nos nodos e, de seguida, criamos, através da função \texttt{inLTree}, a \texttt{LTree} pretendida.
+Para a função \texttt{extLTree}, o processo foi muito simples. Ignoramos toda a informação contida nos nodos e, de seguida, criamos, através da função \texttt{inLTree}, a \texttt{LTree} pretendida.
 
 \begin{eqnarray*}
 \xymatrix@@C=4cm{
@@ -1551,6 +1597,11 @@ fNav (l,r) (h:t) = (p2p (l,r) h) t
 
 \end{code}
 
+Para a função \texttt{navLTree}, o nosso pensamento foi o seguinte:
+\begin{itemize}
+  \item É escolhido, dependendo da cabeça da lista de booleanos, qual o caminho a seguir pela \texttt{LTree}. 
+  \item Quando a lista de booleanos acaba, retornamos uma \texttt{LTree} em que cada lado é correspondente à aplicação da função respetiva à lista vazia.
+\end{itemize}
 
 \subsection*{Problema 4}
 
@@ -1580,7 +1631,11 @@ fbNav (l,r) (Node(b,(esq,dir))) = (p2p (l,r) b) (p2p (esq,dir) b)
 
 \end{code}
 
-
+Para a função \texttt{bnavLTree}, o nosso pensamento foi o seguinte:
+\begin{itemize}
+  \item É escolhido, dependendo do nodo atual da \texttt{BTree} de booleanos, qual o caminho a seguir pela \texttt{LTree} e pela \texttt{BTree}. 
+  \item Quando a \texttt{BTree} de booleanos acaba, retornamos uma \texttt{LTree} em que cada lado é correspondente à aplicação da função respetiva à árvore vazia.
+\end{itemize}
 
 \begin{code}
 
