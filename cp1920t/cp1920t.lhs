@@ -971,6 +971,28 @@ propostos, de acordo com o "layout" que se fornece. Não podem ser
 alterados os nomes ou tipos das funções dadas, mas pode ser adicionado texto e/ou 
 outras funções auxiliares que sejam necessárias.
 
+\begin{code}
+valid t = t == (dic_imp . dic_norm . dic_exp) t
+\end{code}
+\begin{propriedade}
+Se um significado |s| de uma palavra |p| já existe num dicionário normalizado então adicioná-lo
+em memória não altera nada:
+\begin{code}
+prop_dic_red1 p s d
+   | d /= dic_norm d = True  
+   | dic_red p s d = dic_imp d == dic_in p s (dic_imp d)
+   | otherwise = True
+\end{code}
+\end{propriedade}
+\begin{propriedade}
+A operação |dic_rd| implementa a procura na correspondente exportação de um dicionário normalizado:
+\begin{code}
+prop_dic_rd1 (p,t)
+   | valid t     = dic_rd  p t == lookup p (dic_exp t)
+   | otherwise = True
+\end{code}
+\end{propriedade}
+
 \subsection*{Problema 1}
 
 \begin{eqnarray*}
@@ -1078,58 +1100,81 @@ Para a função \texttt{tar}, o nosso método de pensamento foi o seguinte:
 
 \begin{eqnarray*}
 \xymatrix@@C=2cm{
-	|Dict|
-		   \ar[d]^-{|dic_exp|}
+    |Maybe [String]|
+&&
+    |1 + (Exp String String >< Maybe [String])
+           \ar[ll]^-{| either Nothing (either (Just . cons . takeValueFromExp >< takeValueFromMaybe) p2) . (checkTranslation . p1)? |}
 \\
-    |[(String,[String])]|
-           \ar[d]_-{|cataNat dic_rd|}
-&
-    |1 + ((String,[String]) >< [(String,[String])])|
-           \ar[d]^{|id + (id >< cataNat dic_rd)|}
-           \ar[l]_-{|inList|}
+    |[Exp String String]|
+           \ar[u]^-{| cataNat g |}
+&&
+    |1 + (Exp String String >< [Exp String String])|
+           \ar[ll]_-{|inList = either nil cons|}
+           \ar[u]^-{| id + (id >< cataNat g)|}
 \\
-     |Maybe [String]|
+     |String >< [Exp String String]|
+           \ar[u]^-{|[( h )]|}
+           \ar[r]^{|distr . (id >< outList)|} 
 &
-     |1 + ((String,[String]) >< Maybe [String])|
-           \ar[l]^-{|dic_rd|}
-           \ar[d]^{|id + ((procuraTrad x) >< id)|}
-\\
+     |String >< 1 + String >< (Exp String String >< [Exp String String])|
+           \ar[r]^{|nil -|- checkFirstLetter_rd|}
 &
-     |1 + ([String] >< Maybe [String])|
-           \ar[ul]^-{|[Nothing,checkTrad]|}
+     |1 + (Exp String String >< (String >< [Exp String String]))|
+           \ar[u]^-{|id + (id >< [( h )])|}
 }
 \end{eqnarray*}
 
 \begin{code}
 
-dic_rd x = cataList g . dic_exp
-  where g = either (const Nothing) (checkTrad . (procuraTrad x >< id))
+dic_rd p t = dic_rd_aux (p, getExpList t)
+
+dic_rd_aux = hyloList g h
+  where h = (nil -|- checkFirstLetter_rd) . distr . (id >< outList)
+        g = either (const Nothing) (Cp.cond (checkTranslations . p1) (Just . (cons . (takeValueFromExp >< takeValueFromMaybe))) (p2))
+
+getExpList :: Dict -> [Exp String String]
+getExpList (Var a) = [Var a]
+getExpList (Term o l) = [Term o l]
+
+takeValueFromExp :: Exp String String -> String
+takeValueFromExp (Var o) = o
+
+takeValueFromMaybe :: Maybe [String] -> [String]
+takeValueFromMaybe Nothing = []
+takeValueFromMaybe (Just a) = a
+ 
+checkTranslations :: Exp String String -> Bool
+checkTranslations (Var o) = True
+checkTranslations (Term o l) = False
+
+checkFirstLetter_rd :: (String, (Exp String String, [Exp String String])) -> (Exp String String, (String, [Exp String String]))
+checkFirstLetter_rd ( [], ((Term o l),t) ) = ((Term o []), ([], t))
+checkFirstLetter_rd ( [], ((Var o),t) ) = ((Var o), ([], t))
+checkFirstLetter_rd ( s, ((Var o),t) ) = ((Term o []), (s, t))
+checkFirstLetter_rd ( s, ((Term [] l),t) ) = ((Term [] []), (s,l))
+checkFirstLetter_rd ( (x:xs), ((Term o l),t) ) = if x == head(o) then ((Term o []), (xs, l)) else ((Term o []), ((x:xs), t))
 
 \end{code}
 
-\begin{code}
-
-checkTrad :: ([String], Maybe [String]) -> Maybe [String]
-checkTrad (l,p) = if (length l == 0) then p else Just l
-
-procuraTrad :: String -> (String,[String]) -> [String]
-procuraTrad l (p,t) = if l == p then t else []
-
-\end{code}
-
-Para a função \texttt{dic\_rd}, o nosso método de pensamento foi o seguinte:
+Para a função \texttt{dic_rd}, o nosso método de pensamento foi o seguinte:
 
 \begin{itemize}
-	\item Transformar a estrutura \texttt{Dict} numa estrutura mais fácil para proceder à procura das traduções de uma palvara. Decidimos usar a função \texttt{dic\_exp} que, na realidade, já executa este passo por nós. 
-	\item De seguida, é necessário pesquisar a palavra à qual queremos obter as traduções pelos pares \textbf{(palavra, traduções)}. A função \texttt{procuraTrad} faz exatamente isso e ainda acrescenta a funcionalidade de retornar automaticamente a lista de traduções da palavra.
-	\item Finalmente, como sabemos que não existem palavras repetidas no dicionário, se a função \texttt{procuraTrad} retornar uma lista de traduções, podemos automaticamente considerar esse o caso de paragem e retornar o resultado da função \texttt{procuraTrad}. Essa funcionalidade está implementada na função \texttt{checkTrad}.
-\end{itemize}
+  \item Inicialmente, foi necessário pensar numa estrutura que permitisse realizar recursividade horizontal sem saber, exatamente, quantas listas de expressões temos. Assim, a única estrutra conhecida que nos dá esta funcionalidade são as listas.
+  \item Para nos ajudar, criámos uma função auxiliar que recebe a lista de expressões do dicionário e a palavra a pesquisar, a função \texttt{dic_rd_aux}. Esta função é um hilomorfismo em que o seu anamorfismo vai percorrer o dicionário até chegar ao local onde se encontra a tradução/traduções da palavra, guardando o caminho que percorre.
+  \item O catamorfismo simplesmente pega no caminho resultante do anamorfismo e cria uma lista com as expressões \texttt{Var} desse caminho, já que estas representam as traduções.
+  \item Para garantirmos que as expressões \texttt{Var} presentes no caminho representam a tradução da palavra pesquisada, todos os outros \texttt{Var} são transformados em \texttt{Term}.
+\end{itemize} 
+
+\begin{eqnarray*}
+\end{eqnarray*}
 
 \begin{code}
 
-dic_in x = undefined
+dic_in p s t = undefined
 
 \end{code}
+
+Explicação
 
 \newpage
 
@@ -1209,18 +1254,20 @@ maisEsqAux (root, (l,r)) = l
 
 Para a função \texttt{maisEsq}, o nosso método de pensamento foi exatamente o mesmo para a função anterior. Apenas invertemos o caminho que queremos seguir (pela esquerda e não pela direita).
 
-Diagrama da insOrd'
-
 \begin{code}
 
-insOrd' x = cataBTree g 
-  where g = undefined
+insOrd' x = undefined
 
-insOrd a x = undefined
+insOrd a x = insOrd_aux a x
+
+insOrd_aux :: Ord a => a -> BTree a -> BTree a
+insOrd_aux x Empty = Node(x,(Empty,Empty))
+insOrd_aux x (Node(x1,(l,r))) | x <= x1 = Node(x1,((insOrd_aux x l), r))
+                              | otherwise = Node(x1,(l,(insOrd_aux x r)))
 
 \end{code}
 
-Explicação
+Infelizmente, não conseguimos produzir a função insOrd como um catamorfirsmo com recursividade mútua e, daí, criamos a função recursiva que faz a inserção de um elemente de forma ordenada na árvore.
 
 \begin{eqnarray*}
 \xymatrix@@C=2cm{
@@ -1267,7 +1314,17 @@ verificaIsOrdDir (a, (b1, (Node (x1, (t1, t2))))) = if ((a < x1) && (b1 == True)
 
 \end{code}
 
-Explicação
+Para a função \texttt{isOrd}, o nosso método de pensamento foi o seguinte:
+
+\begin{itemize}
+  \item Em primeiro lugar, era necessário verificar se o nodo atual estava ordenado comparado com o que estava à esquerda e à direita dele. Optamos por fazer duas funções auxiliares que verificam exatamente isso:
+  \begin{itemize}
+    \item A função \texttt{verificaIsOrdEsq} verifica se todos os elementos à esquerda do nodo são valores inferiores ou iguais a este. Isto é feito através da comparação do nodo atual com a raiz da árvore esquerda e através da observação do valor \texttt{Boolean} resultante da chamada recursiva.
+    \item A função \texttt{verificaIsOrdEsq} verifica se todos os elementos à direita do nodo são valores maiores do que este. O algoritmo é o mesmo que o apresentado acima, apenas altera a árvore utilizada sendo, neste caso, utilizada a árvore direita. 
+  \end{itemize}
+  \item O resultado destas duas funções é um \texttt{Boolean}, o que indica a necessidade de conjugar estes dois resultados e retornar o \texttt{Boolean} resultante desta operação.
+  \item Finalmente, é aplicada a recursividade mútua, porque não só realizamos a operação descrita acima como também juntamos o resultado desta à árvore ao qual este está associado.
+\end{itemize}
 
 \begin{code}
 
@@ -1279,7 +1336,17 @@ rrotAux (a, ((Node (x1, (t1, t2))), r)) = (x1, (t1, (Node(a, (t2, r)))))
 
 \end{code}
 
-Explicação
+Para a função \texttt{rrot}, o nosso método de pensamento foi o seguinte:
+
+\begin{itemize}
+  \item Em primeiro lugar, vamos aplicar o \texttt{outBTree} à estrutura para podermos observar com mais facilidade o valor da raiz e das suas árvores descendentes.
+  \item Após esta transformação vamos proceder à rotação:
+  \begin{itemize}
+    \item Sabemos que se a árvore do lado esquerdo for vazia, não será possível rodar a árvore. Sendo assim, retornamos a própria árvore.
+    \item Caso seja possível realizar a rotação, vamos colocar o nodo filho da esquerda como a raiz da árvore transformada, a árvore à esquerda desse filho como a árvore à esquerda da raiz e, finalmente, criar uma árvore do lado direito que tenha como raiz a raiz original da árvore principal, como seu filho à esquerda a árvore à direita da raiz da árvore transformada e como seu filho à direita a árvore correspondente ao filho à direita da raiz original.
+  \end{itemize}
+  \item Finalmente, aplicamos \texttt{inTree} para a criação da árvore.
+\end{itemize}
 
 \begin{code}
 
@@ -1291,48 +1358,146 @@ lrotAux (a, (l, (Node (x1, (t1, t2))))) = (x1, ((Node(a, (l, t1))), t2))
 
 \end{code}
 
-Explicação
+Para a função \texttt{lrot}, o nosso método de pensamento foi o seguinte:
+
+\begin{itemize}
+  \item Em primeiro lugar, vamos aplicar o \texttt{outBTree} à estrutura para podermos observar com mais facilidade o valor da raiz e das suas árvores descendentes.
+  \item Após esta transformação vamos proceder à rotação:
+  \begin{itemize}
+    \item Sabemos que se a árvore do lado direito for vazia, não será possível rodar a árvore. Sendo assim, retornamos a própria árvore.
+    \item Caso seja possível realizar a rotação, vamos colocar o nodo filho da direita como a raiz da árvore transformada, a árvore à direita desse filho como a árvore à direita da raiz e, finalmente, criar uma árvore do lado esquerdo que tenha como raiz a raiz original da árvore principal, como seu filho à direita a árvore à esquerda da raiz da árvore transformada e como seu filho à esquerda a árvore correspondente ao filho à esquerda da raiz original.
+  \end{itemize}
+  \item Finalmente, aplicamos \texttt{inTree} para a criação da árvore.
+\end{itemize}
+
+%format (expn (a) (n)) = "{" a "}^{" n "}"
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |BTree A|
+           \ar[d]_-{|cataNat splay|}
+&
+    |1 + (A >< (BTree A >< BTree A))|
+           \ar[d]^{|id + (id >< (cataNat splay >< cataNat splay))|}
+           \ar[l]_-{|inBTree|}
+\\
+     |(expn (BTreeA) (Bool))|
+&
+     |1 + (A >< ((expn (BTree A) (Bool)) ><(expn (BTree A) (Bool))))|
+           \ar[l]^-{|splay = either fSplay1 fSplay2|}
+}
+\end{eqnarray*}
 
 \begin{code}
+ 
+splay = flip (cataBTree g)
+  where g = either fSplay1 fSplay2
 
-splay l t = undefined
+fSplay1 t l = Empty
 
---fSplay (l,r) [] = (l [], r [])
---fSplay (l,r) (h:t) = (p2p (l,r) h) t
-  
+fSplay2 (a,(l,r)) [] = Node (a,(l [], r[]))
+fSplay2 (a,(l,r)) (h:t) = (p2p (l,r) h) t
+
 \end{code}
 
 \subsection*{Problema 3}
 
 \begin{code}
 
--- Diagrama da extLTree
+inBdt = either inBdt1 inBdt2
+inBdt1 a = Dec a
+inBdt2 (s,(t1,t2)) = Query (s,(t1,t2))
+
+\end{code}
+
+\begin{code}
+
+outBdt (Dec a) = i1 a
+outBdt (Query (s,(t1,t2))) = i2 (s,(t1,t2))
+
+\end{code}
+
+\begin{code}
+
+baseBdt f g = f -|- (id >< (g >< g))
+
+recBdt g = baseBdt id g
+
+cataBdt g = g . (recBdt (cataBdt g)) . outBdt
+
+\end{code}
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |Bdt A|
+&&
+    |A + (String >< (Bdt A >< Bdt A))|
+           \ar[ll]_-{|inBdt|}
+\\
+\\
+     |C|
+           \ar[uu]^-{|k = [(g)]|}
+           \ar[r]^{|g|} 
+&
+     |A + (String >< (C >< C))|
+           \ar[uu]^-{|id + (id >< (k >< k))|}
+}
+\end{eqnarray*}
+
+\begin{code}
+
+anaBdt g = inBdt . (recBdt (anaBdt g)) . g
+
+\end{code}
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |Bdt A|
+           \ar[d]_-{|cataNat extLTree|}
+&
+    |A + (String >< (Bdt A >< Bdt A))|
+           \ar[d]^{|id + (id >< (cataNat extLTree >< cataNat extLTree))|}
+           \ar[l]_-{|inBdt|}
+\\
+     |LTree A|
+&
+     |A + (String >< (LTree A >< LTree A))|
+           \ar[l]^-{|extLTree|}
+           \ar[d]^{|id + p2|}
+\\
+&
+     |A + (LTree A >< LTree A)|
+           \ar[ul]^-{|inLTree|}
+}
+\end{eqnarray*}
+
+\begin{code}
 
 extLTree :: Bdt a -> LTree a
 extLTree = cataBdt g where
   g = inLTree . (id -|- p2)
 
--- Explicação
+\end{code}
 
-inBdt = either inBdt1 inBdt2
-inBdt1 a = Dec a
-inBdt2 (s,(t1,t2)) = Query (s,(t1,t2))
+Para a função \texttt{LTree}, o processo foi muito simples. Ignoramos toda a informação contida nos nodos e, de seguida, criamos, através da função \texttt{inLTree}, a \texttt{LTree} pretendida.
 
-outBdt (Dec a) = i1 a
-outBdt (Query (s,(t1,t2))) = i2 (s,(t1,t2))
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |LTree A|
+           \ar[d]_-{|cataNat navLTree|}
+&
+    |A + (LTree A >< LTree A)|
+           \ar[d]^{|id + (cataNat navLTree >< cataNat navLTree)|}
+           \ar[l]_-{|inLTree|}
+\\
+     |(expn (LTree A) (Bool))|
+&
+     |1 + ((expn (LTree A) (Bool)) ><(expn (LTree A) (Bool)))|
+           \ar[l]^-{|navLTree = either (const . Leaf) fNav|}
+}
+\end{eqnarray*}
 
-baseBdt f g = f -|- (id >< (g >< g))
-recBdt g = baseBdt id g
-
-cataBdt g = g . (recBdt (cataBdt g)) . outBdt
-
-anaBdt g = inBdt . (recBdt (anaBdt g)) . g
-
--- Criar gráfico anamorfismo
-
--- Explicação
-
--- Diagrama navLTree
+\begin{code}
 
 navLTree :: LTree a -> ([Bool] -> LTree a)
 navLTree = cataLTree g 
@@ -1341,16 +1506,28 @@ navLTree = cataLTree g
 fNav (l,r) [] = Fork (l [], r [])
 fNav (l,r) (h:t) = (p2p (l,r) h) t
 
--- Explicação
-
 \end{code}
 
 
 \subsection*{Problema 4}
 
-\begin{code}
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |LTree A|
+           \ar[d]_-{|cataNat bnavLTree|}
+&
+    |A + (LTree A >< LTree A)|
+           \ar[d]^{|id + (cataNat bnavLTree >< cataNat bnavLTree)|}
+           \ar[l]_-{|inLTree|}
+\\
+     |(expn (LTree A) (BTree Bool))|
+&
+     |1 + ((expn (LTree A) (BTree Bool)) ><(expn (LTree A) (BTree Bool)))|
+           \ar[l]^-{|navLTree = either (const . Leaf) fbNav|}
+}
+\end{eqnarray*}
 
--- Diagrama bnavLTree
+\begin{code}
 
 bnavLTree = cataLTree g
   where g = either (const . Leaf) fbNav
@@ -1358,10 +1535,14 @@ bnavLTree = cataLTree g
 fbNav (l,r) Empty = Fork (l Empty, r Empty)
 fbNav (l,r) (Node(b,(esq,dir))) = (p2p (l,r) b) (p2p (esq,dir) b)
 
--- Explicação
+\end{code}
+
+
+
+\begin{code}
 
 pbnavLTree = cataLTree g
-  where g = undefined 
+  where g = undefined
 
 \end{code}
 
