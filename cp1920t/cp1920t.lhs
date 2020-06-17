@@ -972,26 +972,42 @@ alterados os nomes ou tipos das funções dadas, mas pode ser adicionado texto e
 outras funções auxiliares que sejam necessárias.
 
 \begin{code}
+
 valid t = t == (dic_imp . dic_norm . dic_exp) t
+
 \end{code}
+
 \begin{propriedade}
+
 Se um significado |s| de uma palavra |p| já existe num dicionário normalizado então adicioná-lo
 em memória não altera nada:
+
 \begin{code}
+
 prop_dic_red1 p s d
    | d /= dic_norm d = True  
    | dic_red p s d = dic_imp d == dic_in p s (dic_imp d)
    | otherwise = True
+
 \end{code}
+
 \end{propriedade}
+
 \begin{propriedade}
+
 A operação |dic_rd| implementa a procura na correspondente exportação de um dicionário normalizado:
+
 \begin{code}
+
 prop_dic_rd1 (p,t)
    | valid t     = dic_rd  p t == lookup p (dic_exp t)
    | otherwise = True
+
 \end{code}
+
 \end{propriedade}
+
+\newpage
 
 \subsection*{Problema 1}
 
@@ -1099,10 +1115,11 @@ Para a função \texttt{tar}, o nosso método de pensamento foi o seguinte:
 \end{itemize}
 
 \begin{eqnarray*}
-\xymatrix@@C=2cm{
+\resizebox{\displaywidth}{!}{%
+\xymatrix@@C=1cm{
     |Maybe [String]|
 &&
-    |1 + (Exp String String >< Maybe [String])
+    |1 + (Exp String String >< Maybe [String])|
            \ar[ll]^-{| either Nothing (either (Just . cons . takeValueFromExp >< takeValueFromMaybe) p2) . (checkTranslation . p1)? |}
 \\
     |[Exp String String]|
@@ -1114,14 +1131,14 @@ Para a função \texttt{tar}, o nosso método de pensamento foi o seguinte:
 \\
      |String >< [Exp String String]|
            \ar[u]^-{|[( h )]|}
-           \ar[r]^{|distr . (id >< outList)|} 
+           \ar[r]_-{|distr . (id >< outList)|} 
 &
      |String >< 1 + String >< (Exp String String >< [Exp String String])|
-           \ar[r]^{|nil -|- checkFirstLetter_rd|}
+           \ar[r]_-{|nil + checkFirstLetter_rd|}
 &
      |1 + (Exp String String >< (String >< [Exp String String]))|
            \ar[u]^-{|id + (id >< [( h )])|}
-}
+}}
 \end{eqnarray*}
 
 \begin{code}
@@ -1130,7 +1147,12 @@ dic_rd p t = dic_rd_aux (p, getExpList t)
 
 dic_rd_aux = hyloList g h
   where h = (nil -|- checkFirstLetter_rd) . distr . (id >< outList)
-        g = either (const Nothing) (Cp.cond (checkTranslations . p1) (Just . (cons . (takeValueFromExp >< takeValueFromMaybe))) (p2))
+        g = either (const Nothing) (Cp.cond (checkTranslations . p1) 
+        	(Just . (cons . (takeValueFromExp >< takeValueFromMaybe))) (p2))
+
+\end{code}
+
+\begin{code}
 
 getExpList :: Dict -> [Exp String String]
 getExpList (Var a) = [Var a]
@@ -1147,36 +1169,38 @@ checkTranslations :: Exp String String -> Bool
 checkTranslations (Var o) = True
 checkTranslations (Term o l) = False
 
-checkFirstLetter_rd :: (String, (Exp String String, [Exp String String])) -> (Exp String String, (String, [Exp String String]))
+\end{code}
+
+\begin{code}
+
+checkFirstLetter_rd :: (String, (Exp String String, [Exp String String])) 
+						-> (Exp String String, (String, [Exp String String]))
 checkFirstLetter_rd ( [], ((Term o l),t) ) = ((Term o []), ([], t))
 checkFirstLetter_rd ( [], ((Var o),t) ) = ((Var o), ([], t))
 checkFirstLetter_rd ( s, ((Var o),t) ) = ((Term o []), (s, t))
 checkFirstLetter_rd ( s, ((Term [] l),t) ) = ((Term [] []), (s,l))
-checkFirstLetter_rd ( (x:xs), ((Term o l),t) ) = if x == head(o) then ((Term o []), (xs, l)) else ((Term o []), ((x:xs), t))
+checkFirstLetter_rd ( (x:xs), ((Term o l),t) ) = if x == head(o) 
+												 	then ((Term o []), (xs, l)) 
+													else ((Term o []), ((x:xs), t))
 
 \end{code}
 
-Para a função \texttt{dic_rd}, o nosso método de pensamento foi o seguinte:
+\newpage
+
+Para a função \texttt{dic\_rd}, o nosso método de pensamento foi o seguinte:
 
 \begin{itemize}
   \item Inicialmente, foi necessário pensar numa estrutura que permitisse realizar recursividade horizontal sem saber, exatamente, quantas listas de expressões temos. Assim, a única estrutra conhecida que nos dá esta funcionalidade são as listas.
-  \item Para nos ajudar, criámos uma função auxiliar que recebe a lista de expressões do dicionário e a palavra a pesquisar, a função \texttt{dic_rd_aux}. Esta função é um hilomorfismo em que o seu anamorfismo vai percorrer o dicionário até chegar ao local onde se encontra a tradução/traduções da palavra, guardando o caminho que percorre.
+  \item Para nos ajudar, criámos uma função auxiliar que recebe a lista de expressões do dicionário e a palavra a pesquisar, a função \texttt{dic\_rd\_aux}. Esta função é um hilomorfismo em que o seu anamorfismo vai percorrer o dicionário até chegar ao local onde se encontra a tradução/traduções da palavra, guardando o caminho que percorre.
   \item O catamorfismo simplesmente pega no caminho resultante do anamorfismo e cria uma lista com as expressões \texttt{Var} desse caminho, já que estas representam as traduções.
   \item Para garantirmos que as expressões \texttt{Var} presentes no caminho representam a tradução da palavra pesquisada, todos os outros \texttt{Var} são transformados em \texttt{Term}.
 \end{itemize} 
-
-\begin{eqnarray*}
-\end{eqnarray*}
 
 \begin{code}
 
 dic_in p s t = undefined
 
 \end{code}
-
-Explicação
-
-\newpage
 
 \subsection*{Problema 2}
 
@@ -1216,6 +1240,8 @@ maisDirAux (root, (l,r)) = r
 \end{code}
 
 Para a função \texttt{maisDir}, o nosso método de pensamento foi muito simples. Enquanto a chamada recursiva retonar um valor à direita, escolhemos sempre esse valor e, dessa forma, seguimos sempre pela direita. Quando a chamada recursiva retornar \texttt{Nothing} do lado direito, é sinal que a árvore do lado direito é \texttt{Empty} logo, o elemento mais à direita é o atual.
+
+\newpage
 
 \begin{eqnarray*}
 \xymatrix@@C=2cm{
@@ -1270,6 +1296,7 @@ insOrd_aux x (Node(x1,(l,r))) | x <= x1 = Node(x1,((insOrd_aux x l), r))
 Infelizmente, não conseguimos produzir a função insOrd como um catamorfirsmo com recursividade mútua e, daí, criamos a função recursiva que faz a inserção de um elemente de forma ordenada na árvore.
 
 \begin{eqnarray*}
+\resizebox{\displaywidth}{!}{%
 \xymatrix@@C=2cm{
     |BTree A|
            \ar[d]_-{|cataNat isOrd'|}
@@ -1282,18 +1309,20 @@ Infelizmente, não conseguimos produzir a função insOrd como um catamorfirsmo 
 &
      |1 + (A >< ((Bool >< BTree A) >< (Bool >< BTree A)))|
            \ar[l]^-{|isOrd'|}
-           \ar[d]^{|id + < <verificaIsOrdEsq . (id >< p1), verificaIsOrdDir . (id >< p2) >, criaBTree . (id >< p2 >< p2) >|}
+           \ar[d]^{|id + < <verificaIsOrdEsq . (id >< p1), verificaIsOrdDir . (id >< p2) >
+           			, criaBTree . (id >< p2 >< p2) >|}
 \\
 &
      |1 + (Bool >< Bool) >< BTree A|
            \ar[ul]^-{|[<True,Empty>,uncurry (&&)]|}
-}
+}}
 \end{eqnarray*}
 
 \begin{code}
 
 isOrd' = cataBTree g
-  where g = either (split (const True) (const Empty)) (split (uncurry (&&) . (split (verificaIsOrdEsq . ( id >< p1 )) (verificaIsOrdDir . ( id >< p2 )))) (criaBTree . ( id >< (p2 >< p2))))
+  where g = either (split (const True) (const Empty)) 
+  			(split (uncurry (&&) . (split (verificaIsOrdEsq . ( id >< p1 )) (verificaIsOrdDir . ( id >< p2 )))) (criaBTree . ( id >< (p2 >< p2))))
  
 isOrd = p1 . isOrd'
 
@@ -1306,13 +1335,19 @@ criaBTree (a, (t1, t2)) = Node(a, (t1,t2))
 
 verificaIsOrdEsq :: Ord a => (a, (Bool, BTree a)) -> Bool
 verificaIsOrdEsq (a, (b1, Empty)) = True
-verificaIsOrdEsq (a, (b1, (Node (x1, (t1, t2))))) = if ((a >= x1) && (b1 == True)) then verificaIsOrdEsq (a,(b1,t1)) && verificaIsOrdEsq (a,(b1,t2)) else False
+verificaIsOrdEsq (a, (b1, (Node (x1, (t1, t2))))) = if ((a >= x1) && (b1 == True)) 
+													then verificaIsOrdEsq (a,(b1,t1)) && verificaIsOrdEsq (a,(b1,t2)) 
+													else False
 
 verificaIsOrdDir :: Ord a => (a, (Bool, BTree a)) -> Bool
 verificaIsOrdDir (a, (b1, Empty)) = True
-verificaIsOrdDir (a, (b1, (Node (x1, (t1, t2))))) = if ((a < x1) && (b1 == True)) then verificaIsOrdDir (a,(b1,t1)) && verificaIsOrdDir (a,(b1,t2)) else False
+verificaIsOrdDir (a, (b1, (Node (x1, (t1, t2))))) = if ((a < x1) && (b1 == True)) 
+													then verificaIsOrdDir (a,(b1,t1)) && verificaIsOrdDir (a,(b1,t2)) 
+													else False
 
 \end{code}
+
+\newpage
 
 Para a função \texttt{isOrd}, o nosso método de pensamento foi o seguinte:
 
@@ -1348,6 +1383,8 @@ Para a função \texttt{rrot}, o nosso método de pensamento foi o seguinte:
   \item Finalmente, aplicamos \texttt{inTree} para a criação da árvore.
 \end{itemize}
 
+\newpage
+
 \begin{code}
 
 lrot = inBTree . (id -|- lrotAux) . outBTree
@@ -1373,7 +1410,7 @@ Para a função \texttt{lrot}, o nosso método de pensamento foi o seguinte:
 %format (expn (a) (n)) = "{" a "}^{" n "}"
 
 \begin{eqnarray*}
-\xymatrix@@C=2cm{
+\xymatrix@@C=4cm{
     |BTree A|
            \ar[d]_-{|cataNat splay|}
 &
@@ -1393,12 +1430,18 @@ Para a função \texttt{lrot}, o nosso método de pensamento foi o seguinte:
 splay = flip (cataBTree g)
   where g = either fSplay1 fSplay2
 
+\end{code}
+
+\begin{code}
+
 fSplay1 t l = Empty
 
 fSplay2 (a,(l,r)) [] = Node (a,(l [], r[]))
 fSplay2 (a,(l,r)) (h:t) = (p2p (l,r) h) t
 
 \end{code}
+
+\newpage
 
 \subsection*{Problema 3}
 
@@ -1437,8 +1480,8 @@ cataBdt g = g . (recBdt (cataBdt g)) . outBdt
 \\
      |C|
            \ar[uu]^-{|k = [(g)]|}
-           \ar[r]^{|g|} 
-&
+           \ar[rr]^-{|g|} 
+&&
      |A + (String >< (C >< C))|
            \ar[uu]^-{|id + (id >< (k >< k))|}
 }
@@ -1482,7 +1525,7 @@ extLTree = cataBdt g where
 Para a função \texttt{LTree}, o processo foi muito simples. Ignoramos toda a informação contida nos nodos e, de seguida, criamos, através da função \texttt{inLTree}, a \texttt{LTree} pretendida.
 
 \begin{eqnarray*}
-\xymatrix@@C=2cm{
+\xymatrix@@C=4cm{
     |LTree A|
            \ar[d]_-{|cataNat navLTree|}
 &
@@ -1512,7 +1555,7 @@ fNav (l,r) (h:t) = (p2p (l,r) h) t
 \subsection*{Problema 4}
 
 \begin{eqnarray*}
-\xymatrix@@C=2cm{
+\xymatrix@@C=4cm{
     |LTree A|
            \ar[d]_-{|cataNat bnavLTree|}
 &
