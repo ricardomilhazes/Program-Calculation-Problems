@@ -971,6 +971,8 @@ propostos, de acordo com o "layout" que se fornece. Não podem ser
 alterados os nomes ou tipos das funções dadas, mas pode ser adicionado texto e/ou 
 outras funções auxiliares que sejam necessárias.
 
+\subsection*{Propriedades adicionais}
+
 \begin{code}
 
 valid t = t == (dic_imp . dic_norm . dic_exp) t
@@ -1120,7 +1122,7 @@ Para a função \texttt{tar}, o nosso método de pensamento foi o seguinte:
     |Maybe [String]|
 &&
     |1 + (Exp String String >< Maybe [String])|
-           \ar[ll]^-{| either Nothing (either (Just . cons . takeValueFromExp >< takeValueFromMaybe) p2) . (checkTranslation . p1)? |}
+           \ar[ll]^-{| either (const Nothing) ((either (Just . cons . takeValueFromExp >< takeValueFromMaybe) p2) . (checkTranslation . p1)?) |}
 \\
     |[Exp String String]|
            \ar[u]^-{| cataNat g |}
@@ -1221,7 +1223,7 @@ dic_in p s t = undefined
 \\
 &
      |1 + Maybe A|
-           \ar[ul]^-{|[Nothing,id]|}
+           \ar[ul]^-{|[const Nothing,id]|}
 }
 \end{eqnarray*}
 
@@ -1260,7 +1262,7 @@ Para a função \texttt{maisDir}, o nosso método de pensamento foi muito simple
 \\
 &
      |1 + Maybe A|
-           \ar[ul]^-{|[Nothing,id]|}
+           \ar[ul]^-{|[const Nothing,id]|}
 }
 \end{eqnarray*}
 
@@ -1592,6 +1594,10 @@ navLTree :: LTree a -> ([Bool] -> LTree a)
 navLTree = cataLTree g 
   where g = either (const . Leaf) fNav
 
+\end{code}
+
+\begin{code}
+
 fNav (l,r) [] = Fork (l [], r [])
 fNav (l,r) (h:t) = (p2p (l,r) h) t
 
@@ -1617,7 +1623,7 @@ Para a função \texttt{navLTree}, o nosso pensamento foi o seguinte:
      |(expn (LTree A) (BTree Bool))|
 &
      |1 + ((expn (LTree A) (BTree Bool)) ><(expn (LTree A) (BTree Bool)))|
-           \ar[l]^-{|navLTree = either (const . Leaf) fbNav|}
+           \ar[l]^-{|bnavLTree = either (const . Leaf) fbNav|}
 }
 \end{eqnarray*}
 
@@ -1625,6 +1631,10 @@ Para a função \texttt{navLTree}, o nosso pensamento foi o seguinte:
 
 bnavLTree = cataLTree g
   where g = either (const . Leaf) fbNav
+
+\end{code}
+
+\begin{code}
 
 fbNav (l,r) Empty = Fork (l Empty, r Empty)
 fbNav (l,r) (Node(b,(esq,dir))) = (p2p (l,r) b) (p2p (esq,dir) b)
@@ -1648,16 +1658,66 @@ pbnavLTree = cataLTree g
 
 \begin{code}
 
-truchet1 = Pictures [ put (0,80) (Arc (-90) 0 40), put (80,0) (Arc 90 180 40) ]
+main :: IO()
+main = display janela white (Pictures (translate_truchet 400 400 truchet1))
+{-}
+main = do 
+        d2 <- randomRIO (2,2)
+        tamanho <- randomRIO (40,80)
+        x <- (-tamanho/d2)
+        y <- (tamanho/d2)
+        l <- gera_mosaicos tamanho 
+        return display janela white (Pictures (geraMosaicos 80 x y tamanho l))
 
-truchet2 = Pictures [ put (0,0) (Arc 0 90 40), put (80,80) (Arc 180 (-90) 40) ]
+-}
+-- display janela white 
+
+
+--(Pictures (translate_truchet 400 400 truchet1))
+{-}
+geraMosaicos :: Int -> Int -> Int -> Int -> IO([Int]) -> [Picture]
+geraMosaicos tM x y tamanho l
+              | (length l == 0) = []
+              | ((head l) :: Int) == 1 = if (x < tamanho) then (translate_truchet x y truchet1) ++ (geraMosaicos tM (x+tM) y tamanho (tail l)) else geraMosaicos tM (-tamanho/2) (y-tM) tamanho (tail l)
+              | ((head l) :: Int) == 2 = if (x < tamanho) then (translate_truchet x y truchet2) ++ (geraMosaicos tM (x+tM) y tamanho (tail l)) else geraMosaicos tM (-tamanho/2) (y-tM) tamanho (tail l)
+
+-}
+
+generate_tamanho :: Int-> Int -> IO Int
+generate_tamanho x y = randomRIO (x,y :: Int)
+
+gera_mosaicos tamanho = random_mosaico tamanho tamanho 
+
+random_mosaico :: Int -> Int -> IO ([Int])
+random_mosaico 0 tamanho = return []
+random_mosaico n tamanho = do 
+              r <- randomList tamanho 
+              rs <- random_mosaico (n-1) tamanho
+              return (r++rs)
+
+randomList :: Int -> IO ([Int])
+randomList 0 = return []
+randomList n = do 
+              r <- randomRIO(1:: Int,2:: Int)
+              rs <- randomList(n-1)
+              return (r:rs)
+
+
+
+translate_truchet :: Float -> Float -> Picture ->[Picture]
+translate_truchet x y (Pictures (l:ls:[])) = [(Translate (x) y l)] ++ [(Translate x y ls)]
+
+
+truchet1 = Pictures [put (0,80) (Arc (-90) 0 40),put (80,0) (Arc 90 180 40)]
+
+truchet2 = Pictures [put (0,0) (Arc 0 90 40), put (80,80) (Arc 180 (-90) 40) ]
 
 --- janela para visualizar:
 
 janela = InWindow
              "Truchet"        -- window title
-             (800, 800)       -- window size
-             (100,100)        -- window position
+             (1200, 1200)       -- window size
+             (600,600)        -- window position
 
 ----- defs auxiliares -------------
 
