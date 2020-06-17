@@ -1243,8 +1243,6 @@ maisDirAux (root, (l,r)) = r
 
 Para a função \texttt{maisDir}, o nosso método de pensamento foi muito simples. Enquanto a chamada recursiva retonar um valor à direita, escolhemos sempre esse valor e, dessa forma, seguimos sempre pela direita. Quando a chamada recursiva retornar \texttt{Nothing} do lado direito, é sinal que a árvore do lado direito é \texttt{Empty} logo, o elemento mais à direita é o atual.
 
-\newpage
-
 \begin{eqnarray*}
 \xymatrix@@C=2cm{
     |BTree A|
@@ -1296,7 +1294,7 @@ Para a função \texttt{maisEsq}, o nosso método de pensamento foi exatamente o
 &
      |1 + (A >< ((BTree A >< BTree A) >< (BTree A >< BTree A)))|
            \ar[l]^-{|insOrd'|}
-           \ar[d]^{|id + < [criaBTree . (id >< (p1 >< p1)), insertValue . criaBTree . (id >< (p2 >< p2))] . (verificaIsOrd . (id >< (p1 >< p1)))?, criaBTree . (id >< p2 >< p2) >|}
+           \ar[d]^{|id + < either (criaBTree . (id >< (p1 >< p1))) (insertValue . criaBTree . (id >< (p2 >< p2))) . (verificaIsOrd . (id >< (p1 >< p1)))?, criaBTree . (id >< p2 >< p2) >|}
 \\
 &
      |1 + (BTree A >< BTree A)|
@@ -1308,7 +1306,8 @@ Para a função \texttt{maisEsq}, o nosso método de pensamento foi exatamente o
 
 insOrd' x = cataBTree g
   where g = either ( split (const Empty) (const Empty) ) ( split h (criaBTree . (id >< (p2 >< p2))) )
-        h = Cp.cond ( verificaIsOrd . (id >< (p1 >< p1)) ) ( criaBTree . (id >< (p1 >< p1)) ) ( insertValue x . criaBTree . (id >< (p2 >< p2)) )
+        h = Cp.cond ( verificaIsOrd . (id >< (p1 >< p1)) ) ( criaBTree . (id >< (p1 >< p1)) ) 
+        ( insertValue x . criaBTree . (id >< (p2 >< p2)) )
 
 insertValue :: Ord a => a -> BTree a -> BTree a
 insertValue x Empty = Node(x,(Empty,Empty))
@@ -1388,8 +1387,6 @@ verificaIsOrdDir (a, (b1, (Node (x1, (t1, t2))))) = if ((a < x1) && (b1 == True)
 													else False
 
 \end{code}
-
-\newpage
 
 Para a função \texttt{isOrd}, o nosso método de pensamento foi o seguinte:
 
@@ -1488,8 +1485,6 @@ Para a função \texttt{splay}, o nosso pensamento foi o seguinte:
   \item É escolhido, dependendo da cabeça da lista de booleanos, qual o caminho a seguir pela \texttt{BTree}. 
   \item Quando a lista de booleanos acaba, retornamos uma \texttt{BTree} em que cada lado é correspondente à aplicação da função respetiva à lista vazia e o seu nodo é o nodo atual.
 \end{itemize}
-
-\newpage
 
 \subsection*{Problema 3}
 
@@ -1609,6 +1604,8 @@ Para a função \texttt{navLTree}, o nosso pensamento foi o seguinte:
   \item Quando a lista de booleanos acaba, retornamos uma \texttt{LTree} em que cada lado é correspondente à aplicação da função respetiva à lista vazia.
 \end{itemize}
 
+\newpage
+
 \subsection*{Problema 4}
 
 \begin{eqnarray*}
@@ -1660,33 +1657,19 @@ pbnavLTree = cataLTree g
 
 main :: IO()
 main = display janela white (Pictures (translate_truchet 400 400 truchet1))
-{-}
-main = do 
-        d2 <- randomRIO (2,2)
-        tamanho <- randomRIO (40,80)
-        x <- (-tamanho/d2)
-        y <- (tamanho/d2)
-        l <- gera_mosaicos tamanho 
-        return display janela white (Pictures (geraMosaicos 80 x y tamanho l))
 
--}
--- display janela white 
+\end{code}
 
-
---(Pictures (translate_truchet 400 400 truchet1))
-{-}
-geraMosaicos :: Int -> Int -> Int -> Int -> IO([Int]) -> [Picture]
-geraMosaicos tM x y tamanho l
-              | (length l == 0) = []
-              | ((head l) :: Int) == 1 = if (x < tamanho) then (translate_truchet x y truchet1) ++ (geraMosaicos tM (x+tM) y tamanho (tail l)) else geraMosaicos tM (-tamanho/2) (y-tM) tamanho (tail l)
-              | ((head l) :: Int) == 2 = if (x < tamanho) then (translate_truchet x y truchet2) ++ (geraMosaicos tM (x+tM) y tamanho (tail l)) else geraMosaicos tM (-tamanho/2) (y-tM) tamanho (tail l)
-
--}
+\begin{code}
 
 generate_tamanho :: Int-> Int -> IO Int
 generate_tamanho x y = randomRIO (x,y :: Int)
 
-gera_mosaicos tamanho = random_mosaico tamanho tamanho 
+gera_matriz_mosaicos tamanho = random_mosaico tamanho tamanho 
+
+\end{code}
+
+\begin{code}
 
 random_mosaico :: Int -> Int -> IO ([Int])
 random_mosaico 0 tamanho = return []
@@ -1695,6 +1678,10 @@ random_mosaico n tamanho = do
               rs <- random_mosaico (n-1) tamanho
               return (r++rs)
 
+\end{code}
+
+\begin{code}
+
 randomList :: Int -> IO ([Int])
 randomList 0 = return []
 randomList n = do 
@@ -1702,10 +1689,16 @@ randomList n = do
               rs <- randomList(n-1)
               return (r:rs)
 
+\end{code}
 
+\begin{code}
 
 translate_truchet :: Float -> Float -> Picture ->[Picture]
 translate_truchet x y (Pictures (l:ls:[])) = [(Translate (x) y l)] ++ [(Translate x y ls)]
+
+\end{code}
+
+\begin{code}
 
 
 truchet1 = Pictures [put (0,80) (Arc (-90) 0 40),put (80,0) (Arc 90 180 40)]
@@ -1725,6 +1718,16 @@ put  = uncurry Translate
 
 -------------------------------------------------
 \end{code}
+
+Para o problema 5 a estratégia do grupo passou por identificar o que seria necessário fazer para imprimir um tabuleiro aleatório de truchets. Sendo assim, o grupo chegou à conclusão que seria necessário gerar alguns valores aleatórios através da \textbf{Mónade System.Random} para o tamanho da janela  e o tipo de mosaico(a ou b) a ser imprimido e por isso aplicamos a Mónade referida anteriormente para obter os valores pretendidos.  Para alem disso verificamos que seria também necessário conseguir imprimir uma lista de varias pictures e consequentemente aplicar uma translação a um truchet. Sendo assim foram implementadas as seguintes funções:
+
+\begin{itemize}
+  \item random\_mosaico : Função que gera uma matriz com valores aleatórios entre 1 e 2.
+  \item gera\_matriz\_mosaicos : Função que vai gerar a matriz de tamanho gerado aleatoriamente utilizando a função random\_mosaico.
+  \item translate\_truchet : Função que aplica a uma lista de Picture uma translação , e será utilizada posteriormente para posicionar os mosaicos.
+
+\end{itemize}
+Infelizmente, o grupo teve alguns erros na geração do tabuleiro completo final com devido a alguns erros de tipo, apesar de conseguirmos executar translações a truchets e gerar o tabuleiro aleatório dado um dado tamanho não conseguimos imprimir totalmente o tabuleiro.
 
 %----------------- Fim do anexo com soluções dos alunos ------------------------%
 
